@@ -1,21 +1,31 @@
 import asyncio
+import logging
 import json
 import random
 from fastapi import FastAPI, WebSocket
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 
+# Настройка логгера для отслеживания событий в приложении
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)  # Получаем основной логгер
+
+# Создание экземпляра FastAPI приложения
 app = FastAPI()
+
+# Добавление поддержки CORS для всех доменов и методов
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # Разрешаем запросы с любых источников
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["*"],  # Разрешаем любые HTTP-методы
+    allow_headers=["*"]  # Разрешаем любые заголовки
 )
 
+# Словарь для хранения активных WebSocket-соединений
 clients = {}
 
+# HTML-шаблон для главной страницы
 HTML = """
 <!DOCTYPE html>
 <html lang="en">
@@ -147,41 +157,78 @@ HTML = """
 </html>
 """
 
+# Асинхронная функция для отправки температуры каждому подключенному клиенту
 async def send_temperature(websocket: WebSocket):
+    logger.info(f"Sending temperature task started for client {websocket.client}")  # Логируем запуск задачи
     while True:
+        # Генерация случайной температуры
         temperature = 150 + random.uniform(-1, 1)
-        message = json.dumps({"jsonrpc": "2.0", "result": temperature, "id": None})
+
+        # Форматируем сообщение в формате JSON-RPC
+        message = json.dumps({
+            "jsonrpc": "2.0",
+            "result": temperature,  # Передаем текущее значение температуры
+            "id": None  # ID запроса оставляем пустым
+        })
+
+        # Отправляем сообщение клиенту через WebSocket
         await websocket.send_text(message)
+
+        # Логируем отправленное значение температуры
+        logger.debug(f"Sent temperature: {temperature:.2f}°C to client {websocket.client}")
+
+        # Пауза перед следующей отправкой (каждую секунду)
         await asyncio.sleep(1)
 
+
+# Обработчик WebSocket соединений
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    await websocket.accept()
-    clients[websocket] = None
+    await websocket.accept()  # Принять новое соединение
+    clients[websocket] = None  # Добавляем новый клиент в словарь
+    logger.info(f"New WebSocket connection from {websocket.client}")  # Логируем новое подключение
 
     try:
         while True:
+            # Ждем поступающих команд от клиента
             data = await websocket.receive_text()
-            request = json.loads(data)
+            request = json.loads(data)  # Парсим JSON-запрос
 
+            # Если команда 'start', начинаем отправлять температуру
             if request.get("method") == "start":
                 if websocket in clients and clients[websocket] is None:
+                    # Запускаем асинхронную задачу для отправки температуры
                     clients[websocket] = asyncio.create_task(send_temperature(websocket))
+                    logger.info(f"Started sending temperature to client {websocket.client}")
 
+            # Если команда 'stop', останавливаем отправку температуры
             elif request.get("method") == "stop":
                 if websocket in clients and clients[websocket] is not None:
+                    # Отменяем задачу отправки температуры
                     clients[websocket].cancel()
                     clients[websocket] = None
+                    logger.info(f"Stopped sending temperature to client {websocket.client}")
 
+    # Обработка исключений
+    except asyncio.CancelledError:
+        logger.warning(f"Task cancelled for client {websocket.client}")
     except Exception as e:
-        print(f"Connection closed: {e}")
+        logger.error(f"An error occurred during WebSocket handling: {str(e)}")
     finally:
+        # Удаление клиента из списка после завершения работы
         del clients[websocket]
+        logger.info(f"Disconnected WebSocket from {websocket.client}")
 
+
+# Маршрут для получения HTML-страницы
 @app.get("/")
 async def get():
     return HTMLResponse(content=HTML)
 
+
+# Запуск сервера
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="127.0.0.1", port=8000)
+
