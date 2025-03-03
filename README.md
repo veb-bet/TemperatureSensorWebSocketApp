@@ -16,14 +16,9 @@
    git clone https://github.com/ваш_логин/ваш_репозиторий.git
    cd ваш_репозиторий
 ```
-2. Создайте и активируйте виртуальное окружение (по желанию):
+2. Установите необходимые зависимости:
 ```bash
-   python -m venv venv
-   source venv/bin/activate  # Для Windows используйте: venv\Scripts\activate
-```
-3. Установите необходимые зависимости:
-```bash
-   pip install fastapi uvicorn
+   pip install -r requirements.txt
 ```
 ## Запуск приложения
 
@@ -44,3 +39,21 @@ uvicorn app:app --reload
 
 - Показания температуры генерируются в диапазоне от 149 до 151 градусов с использованием случайной погрешности.
 - При необходимости вы можете изменить настройки генерации показаний в функции send_temperature.
+
+## Версии
+
+### Базовая версия
+![image](https://github.com/user-attachments/assets/bbcc0da5-b3ff-4c2f-9fbe-c49e6347c0c5)
+
+### Версия с добавленными стилями
+![image_2025-03-02_14-08-24](https://github.com/user-attachments/assets/a3729d51-740d-47ec-b68f-d43287fce697)
+
+### Полная версия с использованием стилей и логирования
+![image](https://github.com/user-attachments/assets/e5b13f36-8447-4fac-a58b-4108f7f07d62)
+
+### На разных устройствах
+![image](https://github.com/user-attachments/assets/f1bccb8f-83c1-440a-b5c5-280a61355f15)
+![image](https://github.com/user-attachments/assets/79635be4-f162-4f6b-b9b1-9bb24f12520c)
+
+
+
